@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: hermes-android-relay
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python hermes_android_relay/relay.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: PAIRING_CODE
+        value: "DIWF4P"
