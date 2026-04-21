@@ -21,12 +21,6 @@ jobs:
       with:
         submodules: recursive
         
-    - name: Clone hermes-android bridge source
-      run: |
-        git clone --depth 1 https://github.com/raulvidis/hermes-android.git /tmp/hermes-android-src
-        mkdir -p hermes-android-bridge
-        cp -r /tmp/hermes-android-src/hermes-android-bridge/* hermes-android-bridge/
-        
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:

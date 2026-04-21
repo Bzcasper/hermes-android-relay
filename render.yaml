@@ -10,7 +10,7 @@ services:
       - key: PYTHON_VERSION
         value: "3.11"
       - key: PAIRING_CODE
-        value: "DIWF4P"
+        value: "86NHU2"
       - key: PORT
         value: "8766"
       # WebSocket ping interval to keep connection alive
