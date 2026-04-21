@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
 """
-Hermes Phone Controller — Control an Android phone like a human via the Hermes Bridge API.
+Hermes Phone Controller v2 — Control an Android phone via the Render relay.
 
-Provides a clean Python interface for:
-- UI automation (click, type, scroll, swipe, read screen)
-- App management (launch, switch, list, kill)
-- Device control (home, back, recents, notifications)
-- Screen capture (screenshot, node tree)
-- Media (camera photo, clipboard)
-- System info (battery, screen size, running apps)
+Architecture:
+  Desktop (this) → HTTP → Render Relay → WebSocket → Phone (relay_connector.py)
 
-The bridge app runs on the phone at http://127.0.0.1:12777
-When accessed remotely, use ADB reverse or the relay server.
+No localhost bridge needed — all traffic goes through the Render relay.
+The relay proxies HTTP requests to the phone's WebSocket connection.
+
+Usage:
+  controller = PhoneController()  # defaults to Render relay
+  controller.ping()
+  controller.tap(540, 1000)
+  controller.screenshot()
 """
 
 import json
+import os
 import time
 import base64
 import re
@@ -56,11 +58,14 @@ class UINode:
                 (b.get("top", 0) + b.get("bottom", 0)) // 2)
 
 
-class PhoneController:
-    """Full phone control via Hermes Bridge API."""
+RENDER_RELAY = os.environ.get("HERMES_RENDER_RELAY", "https://hermes-android-relay.onrender.com")
 
-    def __init__(self, base_url: str = "http://127.0.0.1:12777", timeout: int = 30):
-        self.base_url = base_url.rstrip("/")
+
+class PhoneController:
+    """Full phone control via Render relay (no localhost dependency)."""
+
+    def __init__(self, base_url: str = None, timeout: int = 30):
+        self.base_url = (base_url or RENDER_RELAY).rstrip("/")
         self.timeout = timeout
         self._session_state: Dict[str, Any] = {}
 
@@ -518,11 +523,11 @@ class PhoneController:
 if __name__ == "__main__":
     import sys
 
-    bridge_url = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:12777"
+    bridge_url = sys.argv[1] if len(sys.argv) > 1 else RENDER_RELAY
     ctrl = PhoneController(bridge_url)
 
-    print("Hermes Phone Controller")
-    print(f"Bridge: {bridge_url}")
+    print("Hermes Phone Controller v2")
+    print(f"Relay: {bridge_url}")
     print()
 
     # Health check
