@@ -43,6 +43,25 @@ pending_requests: Dict[str, asyncio.Future] = {}
 connection_times: Dict[str, float] = {}
 
 
+def get_active_connection() -> Optional[tuple[str, web.WebSocketResponse]]:
+    """Return newest healthy phone connection, cleaning up closed sockets."""
+    # Remove closed sockets first
+    for cid, ws in list(phone_connections.items()):
+        if ws.closed:
+            phone_connections.pop(cid, None)
+            connection_times.pop(cid, None)
+
+    if not phone_connections:
+        return None
+
+    # Pick most recent connection to avoid stale routing
+    conn_id = max(connection_times, key=connection_times.get)
+    ws = phone_connections.get(conn_id)
+    if ws is None:
+        return None
+    return conn_id, ws
+
+
 class RelayState:
     """Relay state management with Render optimizations."""
     
@@ -122,6 +141,18 @@ async def ws_handler(request: web.Request) -> web.WebSocketResponse:
     phone_connections[conn_id] = ws
     connection_times[conn_id] = time.time()
     state.connection_count += 1
+
+    # Keep only one active phone connection to avoid stale routing/races.
+    for old_id, old_ws in list(phone_connections.items()):
+        if old_id == conn_id:
+            continue
+        logger.info(f"Closing stale connection [{old_id}] in favor of [{conn_id}]")
+        try:
+            await old_ws.close(code=1000, message=b"Replaced by newer connection")
+        except Exception:
+            pass
+        phone_connections.pop(old_id, None)
+        connection_times.pop(old_id, None)
     
     try:
         # Send welcome message
@@ -175,22 +206,15 @@ async def proxy_handler(request: web.Request) -> web.Response:
     """Proxy HTTP requests from tools to phone via WebSocket."""
     state.request_count += 1
     
-    # Check if any phone is connected (use most recent)
-    if not phone_connections:
+    # Check if any phone is connected (use newest healthy connection)
+    active = get_active_connection()
+    if not active:
         return web.json_response(
             {"error": "No phone connected", "connected_phones": 0},
             status=503
         )
-    
-    # Use most recent connection
-    conn_id, ws = next(iter(phone_connections.items()))
-    
-    if ws.closed:
-        del phone_connections[conn_id]
-        return web.json_response(
-            {"error": "Phone disconnected"},
-            status=503
-        )
+
+    conn_id, ws = active
     
     try:
         # Build command
