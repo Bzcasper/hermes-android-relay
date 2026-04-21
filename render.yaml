@@ -5,8 +5,17 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: python hermes_android_relay/relay.py
+    healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: "3.11"
       - key: PAIRING_CODE
         value: "DIWF4P"
+      - key: PORT
+        value: "8766"
+      # WebSocket ping interval to keep connection alive
+      - key: WS_PING_INTERVAL
+        value: "25"
+      # Connection timeout (Render free tier can be slow to wake)
+      - key: CONNECTION_TIMEOUT
+        value: "60"
