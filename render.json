@@ -1,0 +1,22 @@
+{
+  "name": "hermes-android-relay",
+  "description": "WebSocket relay for hermes-android - Render Free Tier",
+  "env": {
+    "PAIRING_CODE": {
+      "description": "6-character pairing code for phone authentication",
+      "defaultValue": "DIWF4P"
+    }
+  },
+  "build": {
+    "command": "pip install -r requirements.txt"
+  },
+  "start": {
+    "command": "python hermes_android_relay/relay.py"
+  },
+  "healthCheck": {
+    "path": "/health",
+    "interval": "10s",
+    "timeout": "5s"
+  },
+  "plan": "free"
+}

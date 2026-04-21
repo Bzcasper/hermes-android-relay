@@ -1,0 +1,39 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'hermes_android_relay/**'
+      - 'render.yaml'
+      - 'requirements.txt'
+      - 'render.json'
+  
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Deploy to Render
+      uses: johnbeynon/render-deploy-action@v0.0.8
+      with:
+        service-id: ${{ secrets.RENDER_SERVICE_ID }}
+        api-key: ${{ secrets.RENDER_API_KEY }}
+        wait-for-deploy: true
+        
+    - name: Notify on success
+      if: success()
+      run: |
+        echo "✅ Deployed to Render successfully"
+        echo "Health check: https://${{ secrets.RENDER_SERVICE_URL }}/health"
+        
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "❌ Render deployment failed"
+        exit 1

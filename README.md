@@ -72,3 +72,28 @@ Phone ──WebSocket──> Relay (Render) <──HTTP── Hermes (Termux)
 
 - [hermes-android](https://github.com/raulvidis/hermes-android) by @raulvidis
 - [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Research
+
+
+## Quick Deploy
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+
+Or use the [Render CLI](https://render.com/docs/cli):
+```bash
+render deploy
+```
+
+## GitHub Actions Status
+
+| Workflow | Status | Description |
+|----------|--------|-------------|
+| Build APK | ![Build APK](https://github.com/YOURNAME/hermes-android-relay/actions/workflows/build-apk.yml/badge.svg) | Auto-builds Android APK |
+| Deploy Render | ![Deploy](https://github.com/YOURNAME/hermes-android-relay/actions/workflows/deploy-render.yml/badge.svg) | Auto-deploys relay |
+| Test Python | ![Tests](https://github.com/YOURNAME/hermes-android-relay/actions/workflows/test-python.yml/badge.svg) | Python lint & tests |
+
+## Download Pre-built APK
+
+[![Download APK](https://img.shields.io/badge/Download-APK-blue)](https://github.com/YOURNAME/hermes-android-relay/releases/latest)
+
+Go to [Releases](../../releases) to download the latest APK.
+

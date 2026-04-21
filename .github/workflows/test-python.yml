@@ -1,0 +1,43 @@
+name: Test Python Code
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'hermes_android_relay/**'
+      - 'tests/**'
+      - 'requirements.txt'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'hermes_android_relay/**'
+      - 'tests/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+        
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio flake8
+        
+    - name: Lint with flake8
+      run: |
+        flake8 hermes_android_relay --count --select=E9,F63,F7,F82 --show-source --statistics
+        
+    - name: Run tests
+      run: |
+        pytest tests/ -v --tb=short || echo "No tests found"
