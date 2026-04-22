@@ -202,8 +202,12 @@ var serverUrl: String?
             val requestId = json.get("request_id")?.asString ?: ""
             val method = json.get("method")?.asString?.uppercase() ?: "GET"
             val path = json.get("path")?.asString ?: ""
-            val params = json.getAsJsonObject("params") ?: JsonObject()
-            val body = json.getAsJsonObject("body") ?: JsonObject()
+            val params = json.get("params")
+                ?.takeIf { it.isJsonObject && !it.isJsonNull }
+                ?.asJsonObject ?: JsonObject()
+            val body = json.get("body")
+                ?.takeIf { it.isJsonObject && !it.isJsonNull }
+                ?.asJsonObject ?: JsonObject()
 
             Log.d(TAG, "Received command: $method $path (id=$requestId)")
 
