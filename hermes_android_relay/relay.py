@@ -31,7 +31,7 @@ logging.basicConfig(
 logger = logging.getLogger("android_relay")
 
 # Config from environment
-PAIRING_CODE = os.getenv("PAIRING_CODE", "DEFAULT")
+PAIRING_CODE = os.getenv("PAIRING_CODE", "86NHU2")
 PORT = int(os.getenv("PORT", "8766"))
 HOST = os.getenv("HOST", "0.0.0.0")
 WS_PING_INTERVAL = float(os.getenv("WS_PING_INTERVAL", "25"))

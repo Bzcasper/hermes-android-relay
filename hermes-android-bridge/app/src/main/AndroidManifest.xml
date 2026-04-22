@@ -63,5 +63,11 @@
             </intent-filter>
         </service>
 
+        <!-- Media projection foreground service (Android 14+) -->
+        <service
+            android:name=".media.MediaProjectionService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+
     </application>
 </manifest>

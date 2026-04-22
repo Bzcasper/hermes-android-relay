@@ -4,7 +4,7 @@
   "env": {
     "PAIRING_CODE": {
       "description": "6-character pairing code for phone authentication",
-      "defaultValue": "DIWF4P"
+        "defaultValue": "86NHU2"
     }
   },
   "build": {

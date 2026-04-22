@@ -5,7 +5,6 @@ import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
 import android.media.MediaRecorder
 import android.media.projection.MediaProjection
-import android.media.projection.MediaProjectionManager
 import android.os.Handler
 import android.os.HandlerThread
 import android.util.Base64
@@ -13,33 +12,32 @@ import com.hermesandroid.bridge.service.BridgeAccessibilityService
 import java.io.File
 
 object ScreenRecorder {
-    private var projection: MediaProjection? = null
     private var recorder: MediaRecorder? = null
     private var virtualDisplay: VirtualDisplay? = null
     private val handlerThread = HandlerThread("ScreenRecorder").apply { start() }
     private val handler = Handler(handlerThread.looper)
 
-    fun hasPermission(): Boolean = projection != null
+    fun hasPermission(): Boolean = MediaProjectionService.hasProjection()
 
     fun setProjection(p: MediaProjection) {
-        projection?.stop()
-        projection = p
+        MediaProjectionService.setProjection(p)
     }
 
     fun record(durationMs: Long = 5000): Map<String, Any?> {
-        val service = BridgeAccessibilityService.instance
-            ?: return mapOf("success" to false, "message" to "Accessibility service not running")
-        val proj = projection
+        val context = (MediaProjectionService.instance
+            ?: BridgeAccessibilityService.instance)?.applicationContext
+            ?: return mapOf("success" to false, "message" to "No service running")
+        val proj = MediaProjectionService.projection
             ?: return mapOf("success" to false, "message" to "No MediaProjection. Tap 'Grant Screen Recording' in the app first.")
 
         return try {
-            val outputFile = File(service.cacheDir, "screen_record_${System.currentTimeMillis()}.mp4")
-            val metrics = service.resources.displayMetrics
+            val outputFile = File(context.cacheDir, "screen_record_${System.currentTimeMillis()}.mp4")
+            val metrics = context.resources.displayMetrics
             val width = metrics.widthPixels
             val height = metrics.heightPixels
             val density = metrics.densityDpi
 
-            val mr = MediaRecorder(service).apply {
+            val mr = MediaRecorder(context).apply {
                 setVideoSource(MediaRecorder.VideoSource.SURFACE)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                 setOutputFile(outputFile.absolutePath)

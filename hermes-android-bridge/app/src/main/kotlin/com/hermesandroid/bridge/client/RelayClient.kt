@@ -30,6 +30,11 @@ object RelayClient {
     private const val PREFS_NAME = "hermes_bridge_prefs"
     private const val KEY_SERVER_URL = "relay_server_url"
     private const val KEY_PAIRING_CODE = "relay_pairing_code"
+    /** Locked pairing code — must match PAIRING_CODE on Render relay. */
+    private const val LOCKED_PAIRING_CODE = "86NHU2"
+
+    /** Locked Render relay URL — no explicit port, OkHttp maps https:// to 443 (wss). */
+    private const val LOCKED_SERVER_URL = "https://hermes-android-relay.onrender.com"
     private const val MAX_BACKOFF_MS = 30_000L
     private const val MAX_RETRIES = 5
 
@@ -51,12 +56,12 @@ object RelayClient {
     private var shouldReconnect: Boolean = false
 
     var serverUrl: String?
-        get() = prefs?.getString(KEY_SERVER_URL, null)
-        set(value) { prefs?.edit()?.putString(KEY_SERVER_URL, value)?.apply() }
+        get() = prefs?.getString(KEY_SERVER_URL, LOCKED_SERVER_URL) ?: LOCKED_SERVER_URL
+        set(value) { prefs?.edit()?.putString(KEY_SERVER_URL, value ?: LOCKED_SERVER_URL)?.apply() }
 
     var pairingCode: String?
-        get() = prefs?.getString(KEY_PAIRING_CODE, null)
-        set(value) { prefs?.edit()?.putString(KEY_PAIRING_CODE, value)?.apply() }
+        get() = prefs?.getString(KEY_PAIRING_CODE, LOCKED_PAIRING_CODE) ?: LOCKED_PAIRING_CODE
+        set(value) { prefs?.edit()?.putString(KEY_PAIRING_CODE, value ?: LOCKED_PAIRING_CODE)?.apply() }
 
     /** Callback for UI updates. Called on main thread. */
     var onStatusChanged: ((connected: Boolean, message: String) -> Unit)? = null
@@ -178,18 +183,17 @@ object RelayClient {
     }
 
     private fun buildWsUrl(serverUrl: String, pairingCode: String): String {
+        // Strip only the scheme — preserve host and port as-is
         val trimmed = serverUrl.trim().trimEnd('/')
         val useTls = trimmed.startsWith("https://") || trimmed.startsWith("wss://")
-        var base = trimmed
+        val base = trimmed
             .removePrefix("http://").removePrefix("https://")
             .removePrefix("ws://").removePrefix("wss://")
-        if (!base.contains(":")) {
-            base = "$base:8766"
-        }
         val scheme = if (useTls) "wss" else "ws"
-        val url = "$scheme://$base/ws?token=$pairingCode"
-        Log.i(TAG, "Built WebSocket URL: $url")
-        return url
+        // For HTTPS/WSS, let OkHttp use default port 443 — no forced :8766
+        val wsUrl = "$scheme://$base/ws?token=$pairingCode"
+        Log.i(TAG, "Built WebSocket URL: $wsUrl")
+        return wsUrl
     }
 
     private suspend fun handleMessage(ws: WebSocket, text: String) {

@@ -50,7 +50,7 @@ hermes-android-relay/
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PAIRING_CODE` | `86NHU2` | 6-char code for phone auth |
+| `PAIRING_CODE` | `86NHU2` | locked 6-char code for phone auth |
 | `PORT` | auto | Server port (Render sets this) |
 | `HOST` | `0.0.0.0` | Bind address |
 | `WS_PING_INTERVAL` | `25` | WebSocket ping (keeps Render alive) |

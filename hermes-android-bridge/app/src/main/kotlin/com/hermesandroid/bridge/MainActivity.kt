@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
@@ -16,10 +17,10 @@ import android.widget.TextView
 import android.widget.Toast
 import com.hermesandroid.bridge.auth.PairingManager
 import com.hermesandroid.bridge.client.RelayClient
+import com.hermesandroid.bridge.media.MediaProjectionService
 import com.hermesandroid.bridge.media.ScreenRecorder
 import com.hermesandroid.bridge.overlay.StatusOverlay
 import com.hermesandroid.bridge.service.BridgeAccessibilityService
-import java.net.NetworkInterface
 
 class MainActivity : Activity() {
 
@@ -73,6 +74,8 @@ class MainActivity : Activity() {
         setupPermissions()
         setupRelayConnection()
 
+        // Relay client initialization happens in BridgeApplication; avoid duplicate auto-connect here.
+
         updateConnectionInfo()
         updateStatus()
     }
@@ -89,11 +92,16 @@ class MainActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == REQUEST_CODE_SCREEN_RECORD) {
             if (resultCode == RESULT_OK && data != null) {
-                val mpm = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-                val projection = mpm.getMediaProjection(resultCode, data)
-                if (projection != null) {
-                    ScreenRecorder.setProjection(projection)
-                    Toast.makeText(this, "Screen recording permission granted", Toast.LENGTH_SHORT).show()
+                try {
+                    val mpm = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+                    val projection = mpm.getMediaProjection(resultCode, data)
+                    if (projection != null) {
+                        MediaProjectionService.setProjection(projection)
+                        ScreenRecorder.setProjection(projection)
+                        Toast.makeText(this, "Screen recording permission granted", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: SecurityException) {
+                    Toast.makeText(this, "Screen recording: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             } else {
                 Toast.makeText(this, "Screen recording permission denied", Toast.LENGTH_SHORT).show()
@@ -142,9 +150,19 @@ class MainActivity : Activity() {
         }
 
         switchScreenRecord.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked && !ScreenRecorder.hasPermission()) {
-                val mpm = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-                startActivityForResult(mpm.createScreenCaptureIntent(), REQUEST_CODE_SCREEN_RECORD)
+            if (isChecked && !MediaProjectionService.hasProjection()) {
+                // Start the foreground service FIRST (required on Android 14+)
+                val serviceIntent = Intent(this, MediaProjectionService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(serviceIntent)
+                } else {
+                    startService(serviceIntent)
+                }
+                // Let the service start, then show capture consent dialog
+                window.decorView.post {
+                    val mpm = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+                    startActivityForResult(mpm.createScreenCaptureIntent(), REQUEST_CODE_SCREEN_RECORD)
+                }
             }
         }
     }
@@ -156,7 +174,7 @@ class MainActivity : Activity() {
 
         switchAccessibility.isChecked = BridgeAccessibilityService.instance != null
         switchOverlay.isChecked = Settings.canDrawOverlays(this)
-        switchScreenRecord.isChecked = ScreenRecorder.hasPermission()
+        switchScreenRecord.isChecked = MediaProjectionService.hasProjection()
 
         setupPermissions()
     }
@@ -223,8 +241,7 @@ class MainActivity : Activity() {
     }
 
     private fun updateConnectionInfo() {
-        val ip = getLocalIpAddress()
-        tvAddress.text = "http://$ip:8765 (USB/LAN)"
+        tvAddress.text = "Render relay: https://hermes-android-relay.onrender.com"
     }
 
     private fun updateStatus() {
@@ -237,7 +254,7 @@ class MainActivity : Activity() {
             if (serviceRunning) R.drawable.bg_status_dot_green else R.drawable.bg_status_dot_grey
         )
 
-        tvServerStatus.text = "8765"
+        tvServerStatus.text = "render-only"
         tvServerStatus.setTextColor(0xFF4CAF50.toInt())
 
         if (relayConnected) {
@@ -256,12 +273,5 @@ class MainActivity : Activity() {
 
         tvAuthCode.text = PairingManager.getCode()
         tvAuthCode.setTextColor(0xFF4CAF50.toInt())
-    }
-
-    private fun getLocalIpAddress(): String {
-        return NetworkInterface.getNetworkInterfaces()?.toList()
-            ?.flatMap { it.inetAddresses.toList() }
-            ?.firstOrNull { !it.isLoopbackAddress && it.hostAddress?.contains(':') == false }
-            ?.hostAddress ?: "localhost"
     }
 }

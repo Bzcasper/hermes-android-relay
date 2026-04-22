@@ -73,11 +73,11 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 1. Open **Hermes Bridge** app on Samsung
 2. Grant **Accessibility Service** permission
 3. Tap **Connect to Server**
-4. Enter your Render URL:
+4. Enter the deployed Render relay URL:
    ```
-   wss://hermes-android-relay-xxx.onrender.com/ws
+   https://hermes-android-relay.onrender.com
    ```
-5. Enter pairing code: `DIWF4P`
+5. Enter pairing code: `86NHU2`
 6. Tap **Connect**
 
 ### 5. Verify in Termux
@@ -86,8 +86,8 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 # In Termux, install plugin
 curl -sSL https://raw.githubusercontent.com/raulvidis/hermes-android/main/install.sh | bash
 
-# Set relay URL (optional - uses localhost:8766 by default)
-echo "ANDROID_BRIDGE_URL=http://localhost:8766" >> ~/.hermes/.env
+# Set relay URL
+echo "ANDROID_BRIDGE_URL=https://hermes-android-relay.onrender.com" >> ~/.hermes/.env
 
 # Restart gateway
 hermes gateway stop
@@ -102,7 +102,7 @@ android_ping
 ```
 ┌─────────────────┐      WebSocket      ┌─────────────────────┐      HTTP      ┌──────────────────┐
 │   Samsung A24   │ ◄─────────────────► │  Render Free Tier   │ ◄─────────────►│   Hermes in      │
-│  (hermes-       │    wss://...       │  (hermes-android-   │  localhost:8766│   Termux         │
+│  (hermes-       │    wss://...       │  (hermes-android-   │ https://hermes- │   Termux         │
 │   android-      │    ?token=...     │   relay)            │                │                  │
 │   bridge.apk)   │                    │                     │                │                  │
 └─────────────────┘                    └─────────────────────┘                └──────────────────┘
@@ -149,7 +149,7 @@ android_ping
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PAIRING_CODE` | `DEFAULT` | 6-char auth code |
+| `PAIRING_CODE` | `86NHU2` | locked 6-char auth code |
 | `PORT` | `8766` | Server port |
 | `HOST` | `0.0.0.0` | Bind address |
 | `WS_PING_INTERVAL` | `25` | Keepalive ping (seconds) |
@@ -181,8 +181,7 @@ android_ping
 ## Security Notes
 
 - **PAIRING_CODE**: Treat like a password. Regenerate if compromised.
-- **Relay**: No TLS on WebSocket (ws:// not wss:// free tier limitation)
-  - Use TLS proxy (nginx) for production
+- **Relay**: Use the deployed Render HTTPS/WSS endpoint (`https://hermes-android-relay.onrender.com`).
 - **Phone**: Full device access via Accessibility Service
   - Only connect to trusted relays
   - Revoke Accessibility if compromised
@@ -215,6 +214,6 @@ android_ping
 
 ---
 
-**Pairing Code**: `DIWF4P`  
-**Render URL**: `https://hermes-android-relay-xxx.onrender.com` (yours)
-**Health Check**: `https://hermes-android-relay-xxx.onrender.com/health`
+**Pairing Code**: `86NHU2`  
+**Render URL**: `https://hermes-android-relay.onrender.com`
+**Health Check**: `https://hermes-android-relay.onrender.com/health`
