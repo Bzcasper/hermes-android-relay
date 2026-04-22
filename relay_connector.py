@@ -296,9 +296,10 @@ async def connect():
             log.warning(f"Disconnected: {e}")
 
         finally:
-            if ws and not ws.closed:
+            if ws is not None:
                 try:
-                    await ws.close()
+                    if hasattr(ws, "close"):
+                        await ws.close()
                 except Exception:
                     pass
 
