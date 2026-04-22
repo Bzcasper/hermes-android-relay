@@ -127,10 +127,9 @@ class MainActivity : Activity() {
         tvPairingCode.text = PairingManager.getCode()
 
         btnRegenerate.setOnClickListener {
-            PairingManager.regenerateCode()
             tvPairingCode.text = PairingManager.getCode()
             updateStatus()
-            Toast.makeText(this, "New pairing code generated", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Pairing code is locked", Toast.LENGTH_SHORT).show()
         }
 
         tvPairingCode.setOnClickListener {

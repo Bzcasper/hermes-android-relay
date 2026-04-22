@@ -40,7 +40,8 @@ log = logging.getLogger("phone-agent")
 # ─── Config ────────────────────────────────────────────────────────
 
 RELAY_URL = os.environ.get("HERMES_RELAY_URL", "wss://hermes-android-relay.onrender.com")
-PAIRING_CODE = os.environ.get("HERMES_PAIRING_CODE", "86NHU2")
+# Hard-locked to match the relay and bridge APK. Do not source from env.
+PAIRING_CODE = "86NHU2"
 PING_INTERVAL = 25
 RECONNECT_DELAY = 5
 MAX_RECONNECT_DELAY = 120
