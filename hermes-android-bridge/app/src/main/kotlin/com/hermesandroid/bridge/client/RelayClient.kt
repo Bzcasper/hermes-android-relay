@@ -55,13 +55,13 @@ object RelayClient {
     @Volatile
     private var shouldReconnect: Boolean = false
 
-    var serverUrl: String?
-        get() = prefs?.getString(KEY_SERVER_URL, LOCKED_SERVER_URL) ?: LOCKED_SERVER_URL
-        set(value) { prefs?.edit()?.putString(KEY_SERVER_URL, value ?: LOCKED_SERVER_URL)?.apply() }
+var serverUrl: String?
+  get() = LOCKED_SERVER_URL
+  set(value) { /* read-only — always uses LOCKED_SERVER_URL */ }
 
-    var pairingCode: String?
-        get() = prefs?.getString(KEY_PAIRING_CODE, LOCKED_PAIRING_CODE) ?: LOCKED_PAIRING_CODE
-        set(value) { prefs?.edit()?.putString(KEY_PAIRING_CODE, value ?: LOCKED_PAIRING_CODE)?.apply() }
+  var pairingCode: String?
+ get() = LOCKED_PAIRING_CODE
+ set(value) { /* read-only — always uses LOCKED_PAIRING_CODE */ }
 
     /** Callback for UI updates. Called on main thread. */
     var onStatusChanged: ((connected: Boolean, message: String) -> Unit)? = null

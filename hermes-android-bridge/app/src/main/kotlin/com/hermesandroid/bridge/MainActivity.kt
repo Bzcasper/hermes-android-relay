@@ -3,11 +3,15 @@ package com.hermesandroid.bridge
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.ServiceConnection
 import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import android.provider.Settings
 import android.view.View
 import android.widget.Button
@@ -43,9 +47,15 @@ class MainActivity : Activity() {
     private lateinit var btnRegenerate: Button
     private lateinit var etServerUrl: EditText
     private lateinit var tvRelayStatus: TextView
-    private lateinit var btnConnect: Button
-    private lateinit var btnDisconnect: Button
-    private lateinit var tvAddress: TextView
+ private lateinit var btnConnect: Button
+ private lateinit var btnDisconnect: Button
+ private lateinit var tvAddress: TextView
+
+ /**
+  * Set to true when screen capture is pending user consent.
+  * Guard in onActivityResult prevents stale results from a previous request.
+  */
+ private var pendingScreenCapture: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -86,29 +96,32 @@ class MainActivity : Activity() {
         updatePermissionSwitches()
     }
 
-    @Deprecated("Deprecated in Java")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        @Suppress("DEPRECATION")
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQUEST_CODE_SCREEN_RECORD) {
-            if (resultCode == RESULT_OK && data != null) {
-                try {
-                    val mpm = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-                    val projection = mpm.getMediaProjection(resultCode, data)
-                    if (projection != null) {
-                        MediaProjectionService.setProjection(projection)
-                        ScreenRecorder.setProjection(projection)
-                        Toast.makeText(this, "Screen recording permission granted", Toast.LENGTH_SHORT).show()
-                    }
-                } catch (e: SecurityException) {
-                    Toast.makeText(this, "Screen recording: ${e.message}", Toast.LENGTH_LONG).show()
-                }
-            } else {
-                Toast.makeText(this, "Screen recording permission denied", Toast.LENGTH_SHORT).show()
-            }
-            updatePermissionSwitches()
-        }
-    }
+ @Deprecated("Deprecated in Java")
+ override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+ @Suppress("DEPRECATION")
+ super.onActivityResult(requestCode, resultCode, data)
+ if (requestCode == REQUEST_CODE_SCREEN_RECORD) {
+ pendingScreenCapture = false  // consume the pending flag
+ if (resultCode == RESULT_OK && data != null) {
+ try {
+ val mpm = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+ val projection = mpm.getMediaProjection(resultCode, data)
+ if (projection != null) {
+ MediaProjectionService.setProjection(projection)
+ ScreenRecorder.setProjection(projection)
+ Toast.makeText(this, "Screen recording permission granted", Toast.LENGTH_SHORT).show()
+ }
+ } catch (e: SecurityException) {
+ Toast.makeText(this, "Screen recording: ${e.message}", Toast.LENGTH_LONG).show()
+ }
+ } else if (pendingScreenCapture) {
+ // Result came in after we already re-requested — ignore this stale one
+ } else {
+ Toast.makeText(this, "Screen recording permission denied", Toast.LENGTH_SHORT).show()
+ }
+ updatePermissionSwitches()
+ }
+ }
 
     private fun setupPairingCode() {
         tvPairingCode.text = PairingManager.getCode()
@@ -149,25 +162,58 @@ class MainActivity : Activity() {
             }
         }
 
-        switchScreenRecord.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked && !MediaProjectionService.hasProjection()) {
-                // Start the foreground service FIRST (required on Android 14+)
-                val serviceIntent = Intent(this, MediaProjectionService::class.java)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startForegroundService(serviceIntent)
-                } else {
-                    startService(serviceIntent)
-                }
-                // Let the service start, then show capture consent dialog
-                window.decorView.post {
-                    val mpm = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-                    startActivityForResult(mpm.createScreenCaptureIntent(), REQUEST_CODE_SCREEN_RECORD)
-                }
-            }
-        }
-    }
+ switchScreenRecord.setOnCheckedChangeListener { _, isChecked ->
+ if (isChecked && !MediaProjectionService.hasProjection()) {
+ startScreenCaptureWithServiceBind()
+ }
+ }
+ }
 
-    private fun updatePermissionSwitches() {
+ /**
+ * Starts MediaProjectionService, waits for it to be fully foregrounded via
+  * ServiceConnection binding, then shows the capture consent dialog.
+  *
+  * Why binding over window.decorView.post{}:
+  * - window.decorView.post{} queues a Runnable on the main thread, but has NO
+  *   synchronization with the service's onStartCommand().
+  * - On Android 14+, getMediaProjection() fails with SecurityException unless
+  *   startForeground(FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION) has already been
+  *   called on the service.
+  * - onServiceConnected() fires only AFTER the service's onCreate() AND
+  *   onStartCommand() have both completed, guaranteeing the service is fully
+  *   foregrounded before we request the projection.
+  */
+ private fun startScreenCaptureWithServiceBind() {
+ val serviceIntent = Intent(this, MediaProjectionService::class.java)
+ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+ startForegroundService(serviceIntent)
+ } else {
+ startService(serviceIntent)
+ }
+
+ val mediaProjectionConn = object : ServiceConnection {
+ override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+ // Unbind immediately — we only needed to wait for foregrounding
+ unbindService(this)
+ // Now the service is guaranteed to be in foreground state
+ pendingScreenCapture = true
+ val mpm = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+ startActivityForResult(mpm.createScreenCaptureIntent(), REQUEST_CODE_SCREEN_RECORD)
+ }
+
+ override fun onServiceDisconnected(name: ComponentName?) {
+ // Service crashed — clean up
+ unbindService(this)
+ }
+ }
+
+ // BIND_AUTO_CREATE (0x01): creates service if not alive, binds if it is
+ // BIND_ADJUST_FOR_ACTIVITY (0x08): tells system binding is from activity context
+ // Using raw int values since symbolic constants may not be exposed in all SDK versions
+ bindService(serviceIntent, mediaProjectionConn, 0x01 or 0x08)
+ }
+
+ private fun updatePermissionSwitches() {
         switchAccessibility.setOnCheckedChangeListener(null)
         switchOverlay.setOnCheckedChangeListener(null)
         switchScreenRecord.setOnCheckedChangeListener(null)
