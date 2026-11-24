@@ -43,14 +43,16 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
           
-    - name: Make gradlew executable
-      working-directory: ./hermes-android-bridge
-      run: chmod +x gradlew
-      
+    # Gradle wrapper JAR is not committed in this repository; install a compatible
+    # pinned Gradle toolchain instead of invoking a broken wrapper.
+    - name: Set up Gradle 8.4
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: '8.4'
+
     - name: Build APK
       working-directory: ./hermes-android-bridge
-      run: |
-        ./gradlew assembleDebug --no-daemon --stacktrace
+      run: gradle assembleDebug --no-daemon --stacktrace
         
     - name: Upload APK as artifact
       uses: actions/upload-artifact@v4

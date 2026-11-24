@@ -127,9 +127,10 @@ class MainActivity : Activity() {
         tvPairingCode.text = PairingManager.getCode()
 
         btnRegenerate.setOnClickListener {
-            tvPairingCode.text = PairingManager.getCode()
+            RelayClient.disconnect()
+            tvPairingCode.text = PairingManager.regenerateCode()
             updateStatus()
-            Toast.makeText(this, "Pairing code is locked", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Pairing code rotated. Update the relay server secret before reconnecting.", Toast.LENGTH_LONG).show()
         }
 
         tvPairingCode.setOnClickListener {
@@ -254,7 +255,11 @@ class MainActivity : Activity() {
                 return@setOnClickListener
             }
             val code = PairingManager.getCode()
-            RelayClient.connect(url, code)
+            try {
+                RelayClient.connect(url, code)
+            } catch (e: IllegalArgumentException) {
+                Toast.makeText(this, e.message ?: "Invalid relay URL", Toast.LENGTH_LONG).show()
+            }
         }
 
         btnDisconnect.setOnClickListener {

@@ -77,7 +77,7 @@ adb install app/build/outputs/apk/debug/app-debug.apk
    ```
    https://hermes-android-relay.onrender.com
    ```
-5. Enter pairing code: `86NHU2`
+5. Enter pairing code: `<DEVICE_GENERATED_SECRET>`
 6. Tap **Connect**
 
 ### 5. Verify in Termux
@@ -149,7 +149,7 @@ android_ping
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PAIRING_CODE` | `86NHU2` | locked 6-char auth code |
+| `PAIRING_CODE` | No default (required) | locked 6-char auth code |
 | `PORT` | `8766` | Server port |
 | `HOST` | `0.0.0.0` | Bind address |
 | `WS_PING_INTERVAL` | `25` | Keepalive ping (seconds) |
@@ -214,6 +214,10 @@ android_ping
 
 ---
 
-**Pairing Code**: `86NHU2`  
+**Pairing Code**: `<DEVICE_GENERATED_SECRET>`  
 **Render URL**: `https://hermes-android-relay.onrender.com`
 **Health Check**: `https://hermes-android-relay.onrender.com/health`
+
+## Credential migration
+
+The current feature branch replaces the published static pairing credential with a unique device-generated secret. Follow [Pairing Migration](docs/PAIRING_MIGRATION.md) for a coordinated relay and APK migration. Do not commit or log the new secret.

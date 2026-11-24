@@ -40,8 +40,9 @@ log = logging.getLogger("phone-agent")
 # ─── Config ────────────────────────────────────────────────────────
 
 RELAY_URL = os.environ.get("HERMES_RELAY_URL", "wss://hermes-android-relay.onrender.com")
-# Hard-locked to match the relay and bridge APK. Do not source from env.
-PAIRING_CODE = "86NHU2"
+PAIRING_CODE = os.environ.get("PAIRING_CODE", "").strip()
+if len(PAIRING_CODE) < 16:
+    raise RuntimeError("PAIRING_CODE must be configured with at least 16 characters")
 PING_INTERVAL = 25
 RECONNECT_DELAY = 5
 MAX_RECONNECT_DELAY = 120
@@ -239,9 +240,19 @@ async def connect():
     - Respects _shutdown flag for clean exit
     """
     import websockets
+    import inspect
+    from urllib.parse import urlsplit
 
+    parsed = urlsplit(RELAY_URL)
+    if (parsed.scheme != "wss" or not parsed.hostname or parsed.username or
+            parsed.password or parsed.path not in ("", "/") or parsed.query or parsed.fragment):
+        raise ValueError("HERMES_RELAY_URL must be a clean wss:// origin")
     delay = RECONNECT_DELAY
-    url = f"{RELAY_URL}/ws?token={PAIRING_CODE}"
+    url = RELAY_URL.rstrip("/") + "/ws"
+    header_argument = (
+        "additional_headers" if "additional_headers" in inspect.signature(websockets.connect).parameters
+        else "extra_headers"
+    )
 
     while not _shutdown:
         ws = None
@@ -249,6 +260,7 @@ async def connect():
             log.info(f"Connecting to {RELAY_URL}...")
             ws = await websockets.connect(
                 url,
+                **{header_argument: {"Authorization": f"Bearer {PAIRING_CODE}"}},
                 ping_interval=PING_INTERVAL,
                 ping_timeout=20,
                 close_timeout=10,

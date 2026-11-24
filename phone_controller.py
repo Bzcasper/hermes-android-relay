@@ -67,6 +67,9 @@ class PhoneController:
     def __init__(self, base_url: str = None, timeout: int = 30):
         self.base_url = (base_url or RENDER_RELAY).rstrip("/")
         self.timeout = timeout
+        self.pairing_code = os.environ.get("PAIRING_CODE", "").strip()
+        if len(self.pairing_code) < 16:
+            raise ValueError("PAIRING_CODE must be configured for authenticated phone control")
         self._session_state: Dict[str, Any] = {}
 
     # ─── HTTP Layer ───────────────────────────────────────────────
@@ -79,7 +82,7 @@ class PhoneController:
                 method, url,
                 json=data,
                 timeout=self.timeout,
-                headers={"Content-Type": "application/json"}
+                headers={"Content-Type": "application/json", "Authorization": f"Bearer {self.pairing_code}"}
             )
             resp.raise_for_status()
             return resp.json()
@@ -90,6 +93,7 @@ class PhoneController:
                 req.add_header("Content-Type", "application/json")
             else:
                 req = urllib.request.Request(url, method=method)
+            req.add_header("Authorization", f"Bearer {self.pairing_code}")
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 return json.loads(resp.read())
 

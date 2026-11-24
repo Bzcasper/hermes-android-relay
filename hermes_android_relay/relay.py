@@ -14,6 +14,7 @@ import asyncio
 import json
 import logging
 import os
+import secrets
 import time
 import uuid
 from typing import Dict, Optional
@@ -31,8 +32,10 @@ logging.basicConfig(
 logger = logging.getLogger("android_relay")
 
 # Config
-# Hard-locked to the phone app pairing code so deploy/runtime env cannot drift.
-PAIRING_CODE = "86NHU2"
+# Secret is injected at deployment. Never use a public, hardcoded pairing code.
+PAIRING_CODE = os.getenv("PAIRING_CODE", "").strip()
+if len(PAIRING_CODE) < 16:
+    raise RuntimeError("PAIRING_CODE must be configured with at least 16 random characters")
 PORT = int(os.getenv("PORT", "8766"))
 HOST = os.getenv("HOST", "0.0.0.0")
 WS_PING_INTERVAL = float(os.getenv("WS_PING_INTERVAL", "25"))
@@ -97,9 +100,8 @@ async def health_handler(request: web.Request) -> web.Response:
         "service": "hermes-android-relay",
         "version": "0.3.0-render",
         "phone_connected": len(phone_connections) > 0,
-        "pairing_code_prefix": PAIRING_CODE[:2] + "***",
         "stats": state.get_stats(),
-        "websocket_endpoint": ws_url + "?token=" + PAIRING_CODE,
+        "websocket_endpoint": ws_url,
         "timestamp": datetime.utcnow().isoformat()
     })
 
@@ -119,8 +121,9 @@ async def ws_handler(request: web.Request) -> web.WebSocketResponse:
     Render optimization: keeps service alive via WebSocket traffic.
     """
     # Validate pairing code before upgrade
-    token = request.query.get("token", "")
-    if token != PAIRING_CODE:
+    authorization = request.headers.get("Authorization", "")
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not secrets.compare_digest(token.strip(), PAIRING_CODE):
         logger.warning(f"Rejected connection: invalid token from {request.remote}")
         return web.Response(
             status=401,
@@ -204,7 +207,11 @@ async def handle_phone_message(data: dict, conn_id: str):
 
 
 async def proxy_handler(request: web.Request) -> web.Response:
-    """Proxy HTTP requests from tools to phone via WebSocket."""
+    """Proxy only authenticated HTTP requests to the paired phone."""
+    authorization = request.headers.get("Authorization", "")
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not secrets.compare_digest(token.strip(), PAIRING_CODE):
+        return web.json_response({"error": "Unauthorized"}, status=401)
     state.request_count += 1
     
     # Check if any phone is connected (use newest healthy connection)
@@ -306,17 +313,17 @@ if __name__ == "__main__":
     logger.info("=" * 60)
     logger.info("HERMES-ANDROID RELAY v0.3.0 (Render Free Tier)")
     logger.info("=" * 60)
-    logger.info(f"Pairing Code: {PAIRING_CODE}")
+    logger.info("Pairing code: configured")
     logger.info(f"Listening on: {HOST}:{PORT}")
     logger.info(f"Health check: http://{HOST}:{PORT}/health")
     logger.info("")
-    logger.info("Phone connects to: /ws?token=" + PAIRING_CODE)
+    logger.info("Phone connects to: /ws (pairing code required)")
     logger.info("=" * 60)
     
     web.run_app(
         app,
         host=HOST,
         port=PORT,
-        access_log=logger,  # Log all requests
+        access_log=None,  # Do not expose device request metadata
         handle_signals=True
     )
