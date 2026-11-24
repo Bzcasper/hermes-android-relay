@@ -68,10 +68,11 @@ var serverUrl: String?
     }
 
     fun connect(serverUrl: String, pairingCode: String) {
+        require(pairingCode == PairingManager.getCode()) { "Pairing code must match device credential" }
+        buildWsUrl(serverUrl, pairingCode) // Validate before persisting/replacing a connection.
         disconnect()
 
         this.serverUrl = serverUrl
-        require(pairingCode == PairingManager.getCode()) { "Pairing code must match device credential" }
         shouldReconnect = true
 
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
