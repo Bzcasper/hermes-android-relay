@@ -17,6 +17,7 @@ import com.hermesandroid.bridge.service.BridgeAccessibilityService
 import com.hermesandroid.bridge.service.BridgeNotificationListener
 import kotlinx.coroutines.*
 import okhttp3.*
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /**
  * WebSocket client that connects OUT to the Hermes relay server.
@@ -181,17 +182,21 @@ var serverUrl: String?
     }
 
     private fun buildWsUrl(serverUrl: String, pairingCode: String): String {
-        // Strip only the scheme — preserve host and port as-is
-        val trimmed = serverUrl.trim().trimEnd('/')
-        val useTls = trimmed.startsWith("https://") || trimmed.startsWith("wss://")
-        val base = trimmed
-            .removePrefix("http://").removePrefix("https://")
-            .removePrefix("ws://").removePrefix("wss://")
-        val scheme = if (useTls) "wss" else "ws"
-        // For HTTPS/WSS, let OkHttp use default port 443 — no forced :8766
-        val wsUrl = "$scheme://$base/ws?token=$pairingCode"
-        Log.i(TAG, "Built authenticated WebSocket URL")
-        return wsUrl
+        // Never put the device pairing secret on a plaintext WebSocket.
+        // Use OkHttp's parser to reject userinfo, paths, query and fragments.
+        val base = serverUrl.trim().toHttpUrlOrNull()
+            ?: throw IllegalArgumentException("Use a trusted HTTPS relay origin")
+        require(base.scheme == "https" && base.username.isEmpty() && base.password.isEmpty()
+                && base.encodedPath == "/" && base.query == null && base.fragment == null) {
+            "Relay must be a clean HTTPS origin without embedded credentials or paths"
+        }
+        require(pairingCode.length >= 16) { "A configured pairing credential is required" }
+        val httpUrl = base.newBuilder()
+            .addPathSegment("ws")
+            .addQueryParameter("token", pairingCode)
+            .build().toString()
+        // OkHttp URI builder encodes the token as a query parameter.
+        return httpUrl.replaceFirst("https://", "wss://")
     }
 
     private suspend fun handleMessage(ws: WebSocket, text: String) {
