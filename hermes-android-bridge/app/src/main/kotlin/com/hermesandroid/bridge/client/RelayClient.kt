@@ -6,6 +6,7 @@ import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.hermesandroid.bridge.auth.PairingManager
 import com.hermesandroid.bridge.executor.ActionExecutor
 import com.hermesandroid.bridge.media.ScreenRecorder
 import com.hermesandroid.bridge.model.ScreenNode
@@ -30,11 +31,6 @@ object RelayClient {
     private const val PREFS_NAME = "hermes_bridge_prefs"
     private const val KEY_SERVER_URL = "relay_server_url"
     private const val KEY_PAIRING_CODE = "relay_pairing_code"
-    /** Locked pairing code — must match PAIRING_CODE on Render relay. */
-    private const val LOCKED_PAIRING_CODE = "86NHU2"
-
-    /** Locked Render relay URL — no explicit port, OkHttp maps https:// to 443 (wss). */
-    private const val LOCKED_SERVER_URL = "https://hermes-android-relay.onrender.com"
     private const val MAX_BACKOFF_MS = 30_000L
     private const val MAX_RETRIES = 5
 
@@ -56,12 +52,12 @@ object RelayClient {
     private var shouldReconnect: Boolean = false
 
 var serverUrl: String?
-  get() = LOCKED_SERVER_URL
-  set(value) { /* read-only — always uses LOCKED_SERVER_URL */ }
+        get() = prefs?.getString(KEY_SERVER_URL, null)
+        set(value) { prefs?.edit()?.putString(KEY_SERVER_URL, value)?.apply() }
 
-  var pairingCode: String?
- get() = LOCKED_PAIRING_CODE
- set(value) { /* read-only — always uses LOCKED_PAIRING_CODE */ }
+    var pairingCode: String?
+        get() = PairingManager.getCode()
+        set(value) { /* PairingManager controls credential rotation. */ }
 
     /** Callback for UI updates. Called on main thread. */
     var onStatusChanged: ((connected: Boolean, message: String) -> Unit)? = null
@@ -74,7 +70,7 @@ var serverUrl: String?
         disconnect()
 
         this.serverUrl = serverUrl
-        this.pairingCode = pairingCode
+        require(pairingCode == PairingManager.getCode()) { "Pairing code must match device credential" }
         shouldReconnect = true
 
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -106,8 +102,8 @@ var serverUrl: String?
 
     private fun doConnect(serverUrl: String, pairingCode: String) {
         val wsUrl = buildWsUrl(serverUrl, pairingCode)
-        Log.i(TAG, "Connecting to $wsUrl")
-        notifyStatus(false, "Connecting to $wsUrl ...")
+        Log.i(TAG, "Connecting to configured relay")
+        notifyStatus(false, "Connecting to relay ...")
 
         val request = Request.Builder()
             .url(wsUrl)
@@ -116,7 +112,7 @@ var serverUrl: String?
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
 
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                Log.i(TAG, "WebSocket connected to $wsUrl")
+                Log.i(TAG, "WebSocket connected")
                 isConnected = true
                 BridgeAccessibilityService.instance?.startForeground()
                 notifyStatus(true, "Connected to $serverUrl")
@@ -192,7 +188,7 @@ var serverUrl: String?
         val scheme = if (useTls) "wss" else "ws"
         // For HTTPS/WSS, let OkHttp use default port 443 — no forced :8766
         val wsUrl = "$scheme://$base/ws?token=$pairingCode"
-        Log.i(TAG, "Built WebSocket URL: $wsUrl")
+        Log.i(TAG, "Built authenticated WebSocket URL")
         return wsUrl
     }
 
