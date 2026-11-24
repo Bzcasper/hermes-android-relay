@@ -14,7 +14,11 @@ if not (ROOT / "phone_controller.py").exists():
 def load_file(name, path):
     spec = importlib.util.spec_from_file_location(name, ROOT / path)
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    sys.modules[name] = module
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.modules.pop(name, None)
     return module
 
 class ClientAuthTests(unittest.TestCase):
@@ -35,7 +39,7 @@ class ClientAuthTests(unittest.TestCase):
         fake_requests.request = request
         with patch.dict(sys.modules, {"requests": fake_requests}), patch.dict("os.environ", {"PAIRING_CODE": SECRET}):
             mod = load_file("phone_controller_valid", "phone_controller.py")
-            self.assertEqual(mod.PhoneController().ping().get("status"), "ok")
+            self.assertEqual(mod.PhoneController()._get("/ping").get("status"), "ok")
         self.assertEqual(received["headers"]["Authorization"], "Bearer " + SECRET)
 
     def test_mobile_operations_sends_bearer(self):
