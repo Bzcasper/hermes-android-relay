@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 import requests
+import os
 
 
 DEFAULT_BASE = "https://hermes-android-relay.onrender.com"
@@ -40,13 +41,17 @@ class RelayOps:
     def __init__(self, base_url: str = DEFAULT_BASE, timeout: int = 35):
         self.base = base_url.rstrip("/")
         self.timeout = timeout
+        self.pairing_code = os.environ.get("PAIRING_CODE", "").strip()
+        if len(self.pairing_code) < 16:
+            raise ValueError("PAIRING_CODE must be configured for phone operations")
         self.results: List[StepResult] = []
 
     def req(self, method: str, path: str, payload: Optional[Dict[str, Any]] = None) -> requests.Response:
         url = f"{self.base}{path}"
+        headers = {"Authorization": f"Bearer {self.pairing_code}"}
         if payload is None:
-            return requests.request(method, url, timeout=self.timeout)
-        return requests.request(method, url, json=payload, timeout=self.timeout)
+            return requests.request(method, url, timeout=self.timeout, headers=headers)
+        return requests.request(method, url, json=payload, timeout=self.timeout, headers=headers)
 
     def step(self, name: str, method: str, path: str, payload: Optional[Dict[str, Any]] = None, sleep_s: float = 0.8) -> requests.Response:
         t0 = time.time()
