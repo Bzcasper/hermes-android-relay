@@ -138,8 +138,10 @@ var serverUrl: String?
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 val httpCode = response?.code ?: 0
-                val errorDetail = "Error: ${t.javaClass.simpleName}: ${t.message} (HTTP $httpCode)"
-                Log.e(TAG, "WebSocket failure: $errorDetail", t)
+                // OkHttp exception messages can contain the credential-bearing URL.
+                // Report only the exception type and HTTP status; never log throwable.
+                val errorDetail = "WebSocket error: ${t.javaClass.simpleName} (HTTP $httpCode)"
+                Log.e(TAG, errorDetail)
                 isConnected = false
                 notifyStatus(false, errorDetail)
                 scheduleReconnect()
