@@ -109,6 +109,7 @@ var serverUrl: String?
 
         val request = Request.Builder()
             .url(wsUrl)
+            .header("Authorization", "Bearer $pairingCode")
             .build()
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
@@ -194,9 +195,7 @@ var serverUrl: String?
         require(pairingCode.length >= 16) { "A configured pairing credential is required" }
         val httpUrl = base.newBuilder()
             .addPathSegment("ws")
-            .addQueryParameter("token", pairingCode)
             .build().toString()
-        // OkHttp URI builder encodes the token as a query parameter.
         return httpUrl.replaceFirst("https://", "wss://")
     }
 
