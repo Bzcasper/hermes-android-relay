@@ -20,3 +20,11 @@ Retain the previous source and APK hashes. A rollback to the old relay or APK al
 ## Verification status
 
 No production relay restart, Android APK build, ADB install, or Ultra camera access was performed by this PR. Validate with the Python tests and the Android Gradle build before a controlled deployment.
+
+## Transport requirements
+
+The Android bridge accepts only a clean HTTPS relay origin (for example, `https://your-relay.example`). It rejects HTTP/WS plaintext, embedded credentials, URL paths, query strings and fragments before storing the endpoint or replacing its existing connection. The pairing credential is sent over WSS to `/ws` and never printed in application log messages. The server operator must still configure HTTPS and rotate the previously public fixed credential in the secret store.
+
+## CI verification limitation (2026-11-24)
+
+GitHub Actions reports failed Android and Python workflows, but the connected GitHub job records provide no steps or log URLs and the downloadable logs return 404. Do not infer a Kotlin compiler failure or a dependency error without actual job logs. Local Python tests exercise mocked transports only; an Android SDK build, APK artifact inspection, and installation on the Ultra remain required.
