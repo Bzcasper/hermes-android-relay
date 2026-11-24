@@ -43,14 +43,14 @@ hermes-android-relay/
 2. Connect this GitHub repo
 3. Build command: `pip install -r requirements.txt`
 4. Start command: `python hermes_android_relay/relay.py`
-5. Set environment variable: `PAIRING_CODE=86NHU2`
+5. Set environment variable: `PAIRING_CODE` (set as a private deployment secret)
 6. Deploy
 
 ## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PAIRING_CODE` | `86NHU2` | locked 6-char code for phone auth |
+| `PAIRING_CODE` | No default (required) | required secret matching the device-generated pairing code |
 | `PORT` | auto | Server port (Render sets this) |
 | `HOST` | `0.0.0.0` | Bind address |
 | `WS_PING_INTERVAL` | `25` | WebSocket ping (keeps Render alive) |
@@ -89,7 +89,7 @@ Download: Actions run > Artifacts > app-debug-apk.
 2. `adb install hermes-bridge.apk`
 3. Open app, enter:
    - Server URL: `https://hermes-android-relay.onrender.com`
-   - Pairing code: `86NHU2`
+   - Pairing code: `<DEVICE_GENERATED_SECRET>`
 4. Tap Connect
 5. Enable Accessibility: Settings > Accessibility > Hermes Bridge > ON
 
@@ -98,3 +98,7 @@ Download: Actions run > Artifacts > app-debug-apk.
 - Android 14+: Bridge uses `FOREGROUND_SERVICE_TYPE_SPECIAL_USE` only (mediaProjection requires user consent grant first)
 - Render free tier sleeps after 15min idle — phone auto-reconnects
 - First request after idle takes ~30s to wake
+
+## Credential migration
+
+The current feature branch replaces the published static pairing credential with a unique device-generated secret. Follow [Pairing Migration](docs/PAIRING_MIGRATION.md) for a coordinated relay and APK migration. Do not commit or log the new secret.
