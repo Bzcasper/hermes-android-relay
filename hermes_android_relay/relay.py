@@ -121,8 +121,9 @@ async def ws_handler(request: web.Request) -> web.WebSocketResponse:
     Render optimization: keeps service alive via WebSocket traffic.
     """
     # Validate pairing code before upgrade
-    token = request.query.get("token", "")
-    if not secrets.compare_digest(token, PAIRING_CODE):
+    authorization = request.headers.get("Authorization", "")
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not secrets.compare_digest(token.strip(), PAIRING_CODE):
         logger.warning(f"Rejected connection: invalid token from {request.remote}")
         return web.Response(
             status=401,
@@ -323,6 +324,6 @@ if __name__ == "__main__":
         app,
         host=HOST,
         port=PORT,
-        access_log=None,  # Never log /ws?token=... or device data
+        access_log=None,  # Do not expose device request metadata
         handle_signals=True
     )
