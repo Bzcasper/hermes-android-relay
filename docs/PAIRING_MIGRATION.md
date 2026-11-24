@@ -23,8 +23,12 @@ No production relay restart, Android APK build, ADB install, or Ultra camera acc
 
 ## Transport requirements
 
-The Android bridge accepts only a clean HTTPS relay origin (for example, `https://your-relay.example`). It rejects HTTP/WS plaintext, embedded credentials, URL paths, query strings and fragments before storing the endpoint or replacing its existing connection. The pairing credential is sent over WSS to `/ws` and never printed in application log messages. The server operator must still configure HTTPS and rotate the previously public fixed credential in the secret store.
+The Android bridge accepts only a clean HTTPS relay origin (for example, `https://your-relay.example`). It rejects HTTP/WS plaintext, embedded credentials, URL paths, query strings and fragments before storing the endpoint or replacing its existing connection. The pairing credential is sent in a WebSocket `Authorization: Bearer` header over WSS to `/ws`, never in a URL query string or application log messages. The updated relay rejects query-string-only credentials, so the Android APK and any Python connector must be upgraded together. The server operator must still configure HTTPS and rotate the previously public fixed credential in the secret store.
 
 ## CI verification limitation (2026-11-24)
 
 GitHub Actions reports failed Android and Python workflows, but the connected GitHub job records provide no steps or log URLs and the downloadable logs return 404. Do not infer a Kotlin compiler failure or a dependency error without actual job logs. Local Python tests exercise mocked transports only; an Android SDK build, APK artifact inspection, and installation on the Ultra remain required.
+
+## Compatibility note
+
+The updated relay rejects the previous `?token=...` WebSocket handshake. Deploy it only alongside updated Android bridge and `relay_connector.py` clients, with the same rotated secret. Verify these exact client versions and the hosting reverse proxy's support for forwarding the `Authorization` header during WebSocket upgrade.
