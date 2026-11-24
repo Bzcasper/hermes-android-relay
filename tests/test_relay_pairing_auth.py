@@ -44,6 +44,16 @@ class AuthTests(unittest.TestCase):
         self.assertNotIn(SECRET, str(response.body))
         self.assertNotIn("token=", str(response.body))
 
+    def test_websocket_rejects_unauthed_and_url_only_credentials(self):
+        module = load_relay(SECRET)
+        for headers in ({}, {"Authorization": "Bearer wrong"}, {"Authorization": SECRET}):
+            with self.subTest(headers=headers):
+                request = types.SimpleNamespace(
+                    headers=headers, query={"token": SECRET}, remote="127.0.0.1"
+                )
+                response = asyncio.run(module.ws_handler(request))
+                self.assertEqual(response.status, 401)
+
     def test_proxy_denies_missing_and_invalid_bearer_token(self):
         module = load_relay(SECRET)
         for headers in ({}, {"Authorization": "Bearer wrong"}, {"Authorization": SECRET}):
