@@ -255,7 +255,11 @@ class MainActivity : Activity() {
                 return@setOnClickListener
             }
             val code = PairingManager.getCode()
-            RelayClient.connect(url, code)
+            try {
+                RelayClient.connect(url, code)
+            } catch (e: IllegalArgumentException) {
+                Toast.makeText(this, e.message ?: "Invalid relay URL", Toast.LENGTH_LONG).show()
+            }
         }
 
         btnDisconnect.setOnClickListener {
