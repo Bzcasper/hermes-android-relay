@@ -17,6 +17,7 @@ if not SOURCE.exists():
 def load_relay(secret):
     web = types.ModuleType("aiohttp.web")
     web.Request = object
+    web.Application = object
     web.Response = lambda **kwargs: types.SimpleNamespace(status=kwargs.get("status", 200), body=kwargs.get("text"))
     web.WebSocketResponse = object
     web.json_response = lambda payload, status=200: types.SimpleNamespace(status=status, body=payload)
